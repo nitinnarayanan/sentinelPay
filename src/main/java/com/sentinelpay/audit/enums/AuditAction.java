@@ -1,0 +1,18 @@
+package com.sentinelpay.audit.enums;
+
+public enum AuditAction {
+    USER_REGISTERED,
+    USER_LOGIN_SUCCESS,
+    USER_LOGIN_FAILED,
+
+    TRANSACTION_CREATED,
+    TRANSACTION_APPROVED,
+    TRANSACTION_BLOCKED,
+
+    FRAUD_CASE_CREATED,
+    FRAUD_CASE_ASSIGNED,
+    FRAUD_CASE_CLOSED,
+
+    ROLE_ASSIGNED,
+    ROLE_REMOVED
+}

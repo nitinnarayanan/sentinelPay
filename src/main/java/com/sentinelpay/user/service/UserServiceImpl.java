@@ -1,14 +1,19 @@
 package com.sentinelpay.user.service;
 
+import com.sentinelpay.audit.enums.AuditAction;
+import com.sentinelpay.audit.enums.AuditResourceType;
+import com.sentinelpay.audit.service.AuditService;
 import com.sentinelpay.auth.entity.Role;
 import com.sentinelpay.auth.repository.RoleRepository;
 import com.sentinelpay.common.exception.DuplicateResourceException;
 import com.sentinelpay.common.exception.ResourceNotFoundException;
+import com.sentinelpay.common.util.RequestMetadataUtil;
 import com.sentinelpay.user.dto.request.RegisterUserRequest;
 import com.sentinelpay.user.dto.response.UserResponse;
 import com.sentinelpay.user.entity.AppUser;
 import com.sentinelpay.user.enums.UserStatus;
 import com.sentinelpay.user.repository.AppUserRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -26,11 +31,12 @@ public class UserServiceImpl implements UserService {
     private final AppUserRepository appUserRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuditService auditService;
+    private final RequestMetadataUtil requestMetadataUtil;
 
-    //This method hashs password, queries repository directly, assigns roles, contains business rules
     @Override
     @Transactional
-    public UserResponse registerUser(RegisterUserRequest request) {
+    public UserResponse registerUser(RegisterUserRequest request, HttpServletRequest httpRequest) {
         String normalizedEmail = request.email().trim().toLowerCase();
 
         if (appUserRepository.existsByEmail(normalizedEmail)) {
@@ -49,6 +55,17 @@ public class UserServiceImpl implements UserService {
         user.getRoles().add(customerRole);
 
         AppUser savedUser = appUserRepository.save(user);
+
+        auditService.recordEvent(
+                savedUser.getId(),
+                AuditAction.USER_REGISTERED,
+                AuditResourceType.USER,
+                savedUser.getId().toString(),
+                "User registered with email: " + savedUser.getEmail(),
+                requestMetadataUtil.getCorrelationId(httpRequest),
+                requestMetadataUtil.getClientIp(httpRequest),
+                requestMetadataUtil.getUserAgent(httpRequest)
+        );
 
         return toUserResponse(savedUser);
     }
@@ -69,5 +86,4 @@ public class UserServiceImpl implements UserService {
                 user.getCreatedAt()
         );
     }
-
 }
