@@ -1,5 +1,6 @@
 package com.sentinelpay.user.service;
 
+import com.sentinelpay.audit.dto.AuditEventCommand;
 import com.sentinelpay.audit.enums.AuditAction;
 import com.sentinelpay.audit.enums.AuditResourceType;
 import com.sentinelpay.audit.service.AuditService;
@@ -12,15 +13,13 @@ import com.sentinelpay.user.dto.request.RegisterUserRequest;
 import com.sentinelpay.user.dto.response.UserResponse;
 import com.sentinelpay.user.entity.AppUser;
 import com.sentinelpay.user.enums.UserStatus;
+import com.sentinelpay.user.mapper.UserMapper;
 import com.sentinelpay.user.repository.AppUserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -33,19 +32,46 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final AuditService auditService;
     private final RequestMetadataUtil requestMetadataUtil;
+    private final UserMapper userMapper;
 
     @Override
     @Transactional
     public UserResponse registerUser(RegisterUserRequest request, HttpServletRequest httpRequest) {
-        String normalizedEmail = request.email().trim().toLowerCase();
+        String normalizedEmail = normalizeEmail(request.email());
 
-        if (appUserRepository.existsByEmail(normalizedEmail)) {
-            throw new DuplicateResourceException("Email already exists: " + normalizedEmail);
+        validateEmailIsUnique(normalizedEmail);
+
+        Role customerRole = getDefaultCustomerRole();
+
+        AppUser user = buildNewUser(request, normalizedEmail, customerRole);
+
+        AppUser savedUser = appUserRepository.save(user);
+
+        recordUserRegisteredAuditEvent(savedUser, httpRequest);
+
+        return userMapper.toUserResponse(savedUser);
+    }
+
+    private String normalizeEmail(String email) {
+        return email.trim().toLowerCase();
+    }
+
+    private void validateEmailIsUnique(String email) {
+        if (appUserRepository.existsByEmail(email)) {
+            throw new DuplicateResourceException("Email already exists: " + email);
         }
+    }
 
-        Role customerRole = roleRepository.findByName(DEFAULT_ROLE)
+    private Role getDefaultCustomerRole() {
+        return roleRepository.findByName(DEFAULT_ROLE)
                 .orElseThrow(() -> new ResourceNotFoundException("Default role not found: " + DEFAULT_ROLE));
+    }
 
+    private AppUser buildNewUser(
+            RegisterUserRequest request,
+            String normalizedEmail,
+            Role customerRole
+    ) {
         AppUser user = new AppUser();
         user.setEmail(normalizedEmail);
         user.setPasswordHash(passwordEncoder.encode(request.password()));
@@ -53,10 +79,11 @@ public class UserServiceImpl implements UserService {
         user.setLastName(request.lastName().trim());
         user.setStatus(UserStatus.ACTIVE);
         user.getRoles().add(customerRole);
+        return user;
+    }
 
-        AppUser savedUser = appUserRepository.save(user);
-
-        auditService.recordEvent(
+    private void recordUserRegisteredAuditEvent(AppUser savedUser, HttpServletRequest httpRequest) {
+        AuditEventCommand command = new AuditEventCommand(
                 savedUser.getId(),
                 AuditAction.USER_REGISTERED,
                 AuditResourceType.USER,
@@ -67,23 +94,6 @@ public class UserServiceImpl implements UserService {
                 requestMetadataUtil.getUserAgent(httpRequest)
         );
 
-        return toUserResponse(savedUser);
-    }
-
-    private UserResponse toUserResponse(AppUser user) {
-        Set<String> roles = user.getRoles()
-                .stream()
-                .map(Role::getName)
-                .collect(Collectors.toSet());
-
-        return new UserResponse(
-                user.getId(),
-                user.getEmail(),
-                user.getFirstName(),
-                user.getLastName(),
-                user.getStatus(),
-                roles,
-                user.getCreatedAt()
-        );
+        auditService.recordEvent(command);
     }
 }
