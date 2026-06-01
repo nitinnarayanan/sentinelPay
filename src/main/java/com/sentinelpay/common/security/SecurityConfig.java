@@ -1,8 +1,3 @@
-
-//Because Spring Security is added, all APIs are secured by default. For now, create a simple security config.
-//Because this is a stateless REST API setup for now.
-// Later, when we implement JWT properly, we will revisit CSRF and explain when it should be enabled.
-
 package com.sentinelpay.common.security;
 
 import org.springframework.context.annotation.Bean;
@@ -21,9 +16,13 @@ public class SecurityConfig {
         return http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/health",
-                                         "/actuator/health",
-                                         "/api/v1/users/register").permitAll()
+                        .requestMatchers(
+                                "/api/v1/health",
+                                "/actuator/health",
+                                "/api/v1/users/register",
+                                "/api/v1/auth/login",
+                                "/api/v1/auth/refresh"
+                        ).permitAll()
                         .anyRequest().authenticated()
                 )
                 .httpBasic(Customizer.withDefaults())
