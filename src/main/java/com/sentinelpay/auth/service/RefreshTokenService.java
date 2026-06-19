@@ -11,6 +11,8 @@ public interface RefreshTokenService {
 
     String rotateRefreshToken(RefreshToken existingRefreshToken);
 
+    void revokeRefreshToken(String rawToken);
+
     String hashToken(String rawToken);
 
     LocalDateTime getRefreshTokenExpirationDateTime();

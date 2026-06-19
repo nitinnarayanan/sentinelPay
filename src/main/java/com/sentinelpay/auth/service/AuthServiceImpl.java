@@ -180,7 +180,50 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public MessageResponse logout(LogoutRequest request, HttpServletRequest httpRequest) {
-        throw new BadRequestException("Logout is not implemented yet. Complete Stage 3.7 first.");
+        try {
+            RefreshToken refreshToken =
+                    refreshTokenService.validateRefreshToken(request.refreshToken());
+
+            UUID userId = refreshToken.getUser().getId();
+            String email = refreshToken.getUser().getEmail();
+
+            refreshTokenService.revokeRefreshToken(request.refreshToken());
+
+            recordLogoutAuditEvent(
+                    userId,
+                    AuditAction.USER_LOGOUT,
+                    "User logged out successfully: " + email,
+                    httpRequest
+            );
+
+            return new MessageResponse("Logout successful");
+
+        } catch (BadRequestException exception) {
+            recordLogoutAuditEvent(
+                    null,
+                    AuditAction.USER_LOGOUT_FAILED,
+                    "Logout failed: " + exception.getMessage(),
+                    httpRequest
+            );
+            throw exception;
+        }
+    }
+    private void recordLogoutAuditEvent(
+            UUID actorUserId,
+            AuditAction action,
+            String details,
+            HttpServletRequest httpRequest
+    ) {
+        auditService.recordEvent(new AuditEventCommand(
+                actorUserId,
+                action,
+                AuditResourceType.USER,
+                actorUserId != null ? actorUserId.toString() : null,
+                details,
+                requestMetadataUtil.getCorrelationId(httpRequest),
+                requestMetadataUtil.getClientIp(httpRequest),
+                requestMetadataUtil.getUserAgent(httpRequest)
+        ));
     }
 
     private Set<String> extractRoles(SentinelPayUserPrincipal principal) {

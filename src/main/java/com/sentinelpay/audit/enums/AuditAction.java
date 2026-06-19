@@ -18,4 +18,7 @@ public enum AuditAction {
 
     TOKEN_REFRESHED,
     TOKEN_REFRESH_FAILED,
+
+    USER_LOGOUT,
+    USER_LOGOUT_FAILED,
 }

@@ -81,6 +81,14 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
         return createRefreshToken(existingRefreshToken.getUser());
     }
 
+    @Override
+    @Transactional
+    public void revokeRefreshToken(String rawToken) {
+        RefreshToken refreshToken = validateRefreshToken(rawToken);
+        refreshToken.revoke();
+        refreshTokenRepository.save(refreshToken);
+    }
+
     private String generateRawToken() {
         return UUID.randomUUID() + "." + UUID.randomUUID();
     }
