@@ -7,9 +7,9 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 
 @SpringBootApplication
 @EnableConfigurationProperties(JwtProperties.class)
-public class SentinelpayApplication {
+public class SentinelPayApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(SentinelpayApplication.class, args);
+		SpringApplication.run(SentinelPayApplication.class, args);
 	}
 }
