@@ -14,5 +14,8 @@ public enum AuditAction {
     FRAUD_CASE_CLOSED,
 
     ROLE_ASSIGNED,
-    ROLE_REMOVED
+    ROLE_REMOVED,
+
+    TOKEN_REFRESHED,
+    TOKEN_REFRESH_FAILED,
 }

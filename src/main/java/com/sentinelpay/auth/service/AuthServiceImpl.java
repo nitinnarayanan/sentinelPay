@@ -26,6 +26,14 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
+import com.sentinelpay.auth.entity.RefreshToken;
+import com.sentinelpay.auth.entity.Role;
+import com.sentinelpay.auth.entity.Permission;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import java.util.HashSet;
+import java.util.Set;
+
 
 import java.time.LocalDateTime;
 import java.util.Set;
@@ -115,7 +123,59 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public AuthResponse refreshToken(RefreshTokenRequest request, HttpServletRequest httpRequest) {
-        throw new BadRequestException("Refresh token is not implemented yet. Complete Stage 3.5 and Stage 3.6 first.");
+        try {
+            RefreshToken existingRefreshToken =
+                    refreshTokenService.validateRefreshToken(request.refreshToken());
+
+            AppUser user = existingRefreshToken.getUser();
+
+            SentinelPayUserPrincipal principal = buildPrincipalFromUser(user);
+
+            String newAccessToken = jwtService.generateAccessToken(principal);
+            String newRefreshToken = refreshTokenService.rotateRefreshToken(existingRefreshToken);
+
+            recordRefreshAuditEvent(
+                    user.getId(),
+                    AuditAction.TOKEN_REFRESHED,
+                    "Token refreshed successfully for user: " + user.getEmail(),
+                    httpRequest
+            );
+
+            return new AuthResponse(
+                    user.getId(),
+                    user.getEmail(),
+                    extractRoles(principal),
+                    extractPermissions(principal),
+                    newAccessToken,
+                    newRefreshToken,
+                    "Bearer",
+                    jwtService.getAccessTokenExpirationDateTime(),
+                    refreshTokenService.getRefreshTokenExpirationDateTime()
+            );
+
+        } catch (BadRequestException exception) {
+            recordRefreshAuditEvent(
+                    null,
+                    AuditAction.TOKEN_REFRESH_FAILED,
+                    "Token refresh failed: " + exception.getMessage(),
+                    httpRequest
+            );
+            throw exception;
+        }
+    }
+
+    private SentinelPayUserPrincipal buildPrincipalFromUser(AppUser user) {
+        Set<GrantedAuthority> authorities = new HashSet<>();
+
+        for (Role role : user.getRoles()) {
+            authorities.add(new SimpleGrantedAuthority("ROLE_" + role.getName()));
+
+            for (Permission permission : role.getPermissions()) {
+                authorities.add(new SimpleGrantedAuthority(permission.getName()));
+            }
+        }
+
+        return SentinelPayUserPrincipal.from(user, authorities);
     }
 
     @Override
@@ -141,6 +201,24 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private void recordLoginAuditEvent(
+            UUID actorUserId,
+            AuditAction action,
+            String details,
+            HttpServletRequest httpRequest
+    ) {
+        auditService.recordEvent(new AuditEventCommand(
+                actorUserId,
+                action,
+                AuditResourceType.USER,
+                actorUserId != null ? actorUserId.toString() : null,
+                details,
+                requestMetadataUtil.getCorrelationId(httpRequest),
+                requestMetadataUtil.getClientIp(httpRequest),
+                requestMetadataUtil.getUserAgent(httpRequest)
+        ));
+    }
+
+    private void recordRefreshAuditEvent(
             UUID actorUserId,
             AuditAction action,
             String details,

@@ -9,6 +9,8 @@ public interface RefreshTokenService {
 
     String createRefreshToken(AppUser user);
 
+    String rotateRefreshToken(RefreshToken existingRefreshToken);
+
     String hashToken(String rawToken);
 
     LocalDateTime getRefreshTokenExpirationDateTime();

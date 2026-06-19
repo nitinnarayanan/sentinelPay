@@ -4,6 +4,7 @@ import com.sentinelpay.auth.entity.RefreshToken;
 import com.sentinelpay.auth.enums.RefreshTokenStatus;
 import com.sentinelpay.user.entity.AppUser;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.EntityGraph;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -12,6 +13,7 @@ import java.util.UUID;
 
 public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID> {
 
+    @EntityGraph(attributePaths = {"user", "user.roles", "user.roles.permissions"})
     Optional<RefreshToken> findByTokenHash(String tokenHash);
 
     List<RefreshToken> findByUser(AppUser user);
