@@ -40,3 +40,11 @@ logging:
     root: INFO
     com.sentinelpay: DEBUG
     org.hibernate.SQL: DEBUG
+
+sentinelpay:
+  security:
+    jwt:
+      secret: "CHANGE_THIS_TO_A_LONG_SECRET_KEY_FOR_LOCAL_DEVELOPMENT_ONLY_123456789_CHANGE_ME"
+      access-token-expiration-minutes: 15
+      refresh-token-expiration-days: 30
+      issuer: "sentinelpay-api"
