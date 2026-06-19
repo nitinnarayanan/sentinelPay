@@ -19,4 +19,7 @@ public interface AppUserRepository extends JpaRepository<AppUser, UUID> {
 
     @EntityGraph(attributePaths = {"roles", "roles.permissions"})
     Optional<AppUser> findWithRolesAndPermissionsByEmail(String email);
+
+    @EntityGraph(attributePaths = {"roles", "roles.permissions"})
+    Optional<AppUser> findWithRolesAndPermissionsById(UUID id);
 }

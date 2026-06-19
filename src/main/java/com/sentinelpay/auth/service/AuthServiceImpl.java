@@ -1,5 +1,8 @@
 package com.sentinelpay.auth.service;
 
+import com.sentinelpay.user.entity.AppUser;
+import com.sentinelpay.user.repository.AppUserRepository;
+import com.sentinelpay.common.exception.ResourceNotFoundException;
 import com.sentinelpay.audit.dto.AuditEventCommand;
 import com.sentinelpay.audit.enums.AuditAction;
 import com.sentinelpay.audit.enums.AuditResourceType;
@@ -37,6 +40,8 @@ public class AuthServiceImpl implements AuthService {
     private final JwtService jwtService;
     private final AuditService auditService;
     private final RequestMetadataUtil requestMetadataUtil;
+    private final RefreshTokenService refreshTokenService;
+    private final AppUserRepository appUserRepository;
 
     @Override
     public AuthResponse login(LoginRequest request, HttpServletRequest httpRequest) {
@@ -55,6 +60,11 @@ public class AuthServiceImpl implements AuthService {
 
             String accessToken = jwtService.generateAccessToken(principal);
 
+            AppUser user = appUserRepository.findWithRolesAndPermissionsById(principal.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + principal.getId()));
+
+            String refreshToken = refreshTokenService.createRefreshToken(user);
+
             recordLoginAuditEvent(
                     principal.getId(),
                     AuditAction.USER_LOGIN_SUCCESS,
@@ -68,10 +78,10 @@ public class AuthServiceImpl implements AuthService {
                     extractRoles(principal),
                     extractPermissions(principal),
                     accessToken,
-                    null,
+                    refreshToken,
                     "Bearer",
                     jwtService.getAccessTokenExpirationDateTime(),
-                    null
+                    refreshTokenService.getRefreshTokenExpirationDateTime()
             );
 
         } catch (BadCredentialsException exception) {
