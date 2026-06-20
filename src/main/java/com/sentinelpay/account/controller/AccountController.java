@@ -11,6 +11,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/api/v1/accounts")
 @RequiredArgsConstructor
@@ -27,4 +30,22 @@ public class AccountController {
     ) {
         return accountService.createAccount(request, principal);
     }
+
+    @GetMapping
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public List<AccountResponse> getMyAccounts(
+            @AuthenticationPrincipal SentinelPayUserPrincipal principal
+    ) {
+        return accountService.getMyAccounts(principal);
+    }
+
+    @GetMapping("/{accountId}")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public AccountResponse getMyAccountById(
+            @PathVariable UUID accountId,
+            @AuthenticationPrincipal SentinelPayUserPrincipal principal
+    ) {
+        return accountService.getMyAccountById(accountId, principal);
+    }
+
 }
