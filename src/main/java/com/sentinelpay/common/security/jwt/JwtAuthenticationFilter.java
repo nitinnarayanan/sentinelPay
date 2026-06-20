@@ -14,6 +14,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import com.sentinelpay.common.exception.ErrorCode;
+import com.sentinelpay.common.security.SecurityErrorResponseWriter;
+import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
 
@@ -23,6 +26,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String AUTHORIZATION_HEADER = "Authorization";
     private static final String BEARER_PREFIX = "Bearer ";
+    private final SecurityErrorResponseWriter errorResponseWriter;
 
     private final JwtService jwtService;
     private final CustomUserDetailsService customUserDetailsService;
@@ -70,15 +74,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         } catch (JwtException | IllegalArgumentException exception) {
             SecurityContextHolder.clearContext();
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.setContentType("application/json");
-            response.getWriter().write("""
-                    {
-                      "status": 401,
-                      "error": "Unauthorized",
-                      "message": "Invalid or expired JWT token"
-                    }
-                    """);
+
+            errorResponseWriter.writeErrorResponse(
+                    request,
+                    response,
+                    HttpStatus.UNAUTHORIZED,
+                    ErrorCode.UNAUTHORIZED,
+                    "Invalid or expired JWT token"
+            );
         }
     }
 }
