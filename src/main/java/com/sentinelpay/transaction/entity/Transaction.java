@@ -60,4 +60,32 @@ public class Transaction extends BaseEntity {
     public boolean isBlocked() {
         return status == TransactionStatus.BLOCKED;
     }
+
+    public void approve() {
+        if (status != TransactionStatus.PENDING) {
+            throw new IllegalStateException("Only PENDING transactions can be approved");
+        }
+        this.status = TransactionStatus.APPROVED;
+    }
+
+    public void block() {
+        if (status != TransactionStatus.PENDING) {
+            throw new IllegalStateException("Only PENDING transactions can be blocked");
+        }
+        this.status = TransactionStatus.BLOCKED;
+    }
+
+    public void fail() {
+        if (status != TransactionStatus.PENDING) {
+            throw new IllegalStateException("Only PENDING transactions can be failed");
+        }
+        this.status = TransactionStatus.FAILED;
+    }
+
+    public void cancel() {
+        if (status != TransactionStatus.PENDING) {
+            throw new IllegalStateException("Only PENDING transactions can be cancelled");
+        }
+        this.status = TransactionStatus.CANCELLED;
+    }
 }

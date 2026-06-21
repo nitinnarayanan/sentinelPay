@@ -49,4 +49,44 @@ public class TransactionController {
     ) {
         return transactionService.getMyTransactionById(transactionId, principal);
     }
+
+    @PostMapping("/{transactionId}/approve")
+    @PreAuthorize("hasAuthority('FRAUD_CASE_DECIDE')")
+    public TransactionResponse approveTransaction(
+            @PathVariable UUID transactionId,
+            @AuthenticationPrincipal SentinelPayUserPrincipal principal,
+            HttpServletRequest httpRequest
+    ) {
+        return transactionService.approveTransaction(transactionId, principal, httpRequest);
+    }
+
+    @PostMapping("/{transactionId}/block")
+    @PreAuthorize("hasAuthority('FRAUD_CASE_DECIDE')")
+    public TransactionResponse blockTransaction(
+            @PathVariable UUID transactionId,
+            @AuthenticationPrincipal SentinelPayUserPrincipal principal,
+            HttpServletRequest httpRequest
+    ) {
+        return transactionService.blockTransaction(transactionId, principal, httpRequest);
+    }
+
+    @PostMapping("/{transactionId}/fail")
+    @PreAuthorize("hasAuthority('FRAUD_CASE_DECIDE')")
+    public TransactionResponse failTransaction(
+            @PathVariable UUID transactionId,
+            @AuthenticationPrincipal SentinelPayUserPrincipal principal,
+            HttpServletRequest httpRequest
+    ) {
+        return transactionService.failTransaction(transactionId, principal, httpRequest);
+    }
+
+    @PostMapping("/{transactionId}/cancel")
+    @PreAuthorize("hasAuthority('TRANSACTION_CREATE')")
+    public TransactionResponse cancelTransaction(
+            @PathVariable UUID transactionId,
+            @AuthenticationPrincipal SentinelPayUserPrincipal principal,
+            HttpServletRequest httpRequest
+    ) {
+        return transactionService.cancelTransaction(transactionId, principal, httpRequest);
+    }
 }

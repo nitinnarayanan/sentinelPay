@@ -22,4 +22,28 @@ public interface TransactionService {
             UUID transactionId,
             SentinelPayUserPrincipal principal
     );
+
+    TransactionResponse approveTransaction(
+            UUID transactionId,
+            SentinelPayUserPrincipal principal,
+            HttpServletRequest httpRequest
+    );
+
+    TransactionResponse blockTransaction(
+            UUID transactionId,
+            SentinelPayUserPrincipal principal,
+            HttpServletRequest httpRequest
+    );
+
+    TransactionResponse failTransaction(
+            UUID transactionId,
+            SentinelPayUserPrincipal principal,
+            HttpServletRequest httpRequest
+    );
+
+    TransactionResponse cancelTransaction(
+            UUID transactionId,
+            SentinelPayUserPrincipal principal,
+            HttpServletRequest httpRequest
+    );
 }

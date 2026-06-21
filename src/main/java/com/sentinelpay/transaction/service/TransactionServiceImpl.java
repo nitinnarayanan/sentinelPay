@@ -23,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.function.Consumer;
 
 import java.util.List;
 import java.util.UUID;
@@ -195,5 +196,144 @@ public class TransactionServiceImpl implements TransactionService {
         if (!createdByUser && !sourceAccountOwner && !destinationAccountOwner) {
             throw new AccessDeniedException("You do not have permission to access this transaction");
         }
+    }
+
+    @Override
+    @Transactional
+    public TransactionResponse approveTransaction(
+            UUID transactionId,
+            SentinelPayUserPrincipal principal,
+            HttpServletRequest httpRequest
+    ) {
+        return transitionTransactionStatus(
+                transactionId,
+                principal,
+                httpRequest,
+                Transaction::approve,
+                AuditAction.TRANSACTION_APPROVED,
+                "Transaction approved"
+        );
+    }
+
+    @Override
+    @Transactional
+    public TransactionResponse blockTransaction(
+            UUID transactionId,
+            SentinelPayUserPrincipal principal,
+            HttpServletRequest httpRequest
+    ) {
+        return transitionTransactionStatus(
+                transactionId,
+                principal,
+                httpRequest,
+                Transaction::block,
+                AuditAction.TRANSACTION_BLOCKED,
+                "Transaction blocked"
+        );
+    }
+
+    @Override
+    @Transactional
+    public TransactionResponse failTransaction(
+            UUID transactionId,
+            SentinelPayUserPrincipal principal,
+            HttpServletRequest httpRequest
+    ) {
+        return transitionTransactionStatus(
+                transactionId,
+                principal,
+                httpRequest,
+                Transaction::fail,
+                AuditAction.TRANSACTION_FAILED,
+                "Transaction failed"
+        );
+    }
+
+    @Override
+    @Transactional
+    public TransactionResponse cancelTransaction(
+            UUID transactionId,
+            SentinelPayUserPrincipal principal,
+            HttpServletRequest httpRequest
+    ) {
+        Transaction transaction = transactionRepository.findWithDetailsById(transactionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Transaction not found with id: " + transactionId));
+
+        validateTransactionVisibility(transaction, principal);
+
+        try {
+            transaction.cancel();
+        } catch (IllegalStateException exception) {
+            throw new BadRequestException(exception.getMessage());
+        }
+
+        Transaction savedTransaction = transactionRepository.save(transaction);
+
+        recordTransactionStatusAuditEvent(
+                savedTransaction,
+                principal,
+                httpRequest,
+                AuditAction.TRANSACTION_CANCELLED,
+                "Transaction cancelled"
+        );
+
+        return transactionMapper.toTransactionResponse(savedTransaction);
+    }
+
+
+    private TransactionResponse transitionTransactionStatus(
+            UUID transactionId,
+            SentinelPayUserPrincipal principal,
+            HttpServletRequest httpRequest,
+            Consumer<Transaction> transitionAction,
+            AuditAction auditAction,
+            String auditMessage
+    ) {
+        Transaction transaction = transactionRepository.findWithDetailsById(transactionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Transaction not found with id: " + transactionId));
+
+        try {
+            transitionAction.accept(transaction);
+        } catch (IllegalStateException exception) {
+            throw new BadRequestException(exception.getMessage());
+        }
+
+        Transaction savedTransaction = transactionRepository.save(transaction);
+
+        recordTransactionStatusAuditEvent(
+                savedTransaction,
+                principal,
+                httpRequest,
+                auditAction,
+                auditMessage
+        );
+
+        return transactionMapper.toTransactionResponse(savedTransaction);
+    }
+
+    //audit helper
+    private void recordTransactionStatusAuditEvent(
+            Transaction transaction,
+            SentinelPayUserPrincipal principal,
+            HttpServletRequest httpRequest,
+            AuditAction auditAction,
+            String auditMessage
+    ) {
+        String details = auditMessage
+                + " with id "
+                + transaction.getId()
+                + ", status "
+                + transaction.getStatus();
+
+        auditService.recordEvent(new AuditEventCommand(
+                principal.getId(),
+                auditAction,
+                AuditResourceType.TRANSACTION,
+                transaction.getId().toString(),
+                details,
+                requestMetadataUtil.getCorrelationId(httpRequest),
+                requestMetadataUtil.getClientIp(httpRequest),
+                requestMetadataUtil.getUserAgent(httpRequest)
+        ));
     }
 }
