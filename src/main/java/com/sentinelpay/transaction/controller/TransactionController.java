@@ -12,6 +12,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/api/v1/transactions")
 @RequiredArgsConstructor
@@ -28,5 +31,22 @@ public class TransactionController {
             HttpServletRequest httpRequest
     ) {
         return transactionService.createTransaction(request, principal, httpRequest);
+    }
+
+    @GetMapping
+    @PreAuthorize("hasAuthority('TRANSACTION_VIEW_OWN')")
+    public List<TransactionResponse> getMyTransactions(
+            @AuthenticationPrincipal SentinelPayUserPrincipal principal
+    ) {
+        return transactionService.getMyTransactions(principal);
+    }
+
+    @GetMapping("/{transactionId}")
+    @PreAuthorize("hasAuthority('TRANSACTION_VIEW_OWN')")
+    public TransactionResponse getMyTransactionById(
+            @PathVariable UUID transactionId,
+            @AuthenticationPrincipal SentinelPayUserPrincipal principal
+    ) {
+        return transactionService.getMyTransactionById(transactionId, principal);
     }
 }

@@ -27,15 +27,30 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
 
     @EntityGraph(attributePaths = {
             "sourceAccount",
+            "sourceAccount.user",
             "destinationAccount",
+            "destinationAccount.user",
             "createdByUser"
     })
     Optional<Transaction> findWithDetailsById(UUID id);
 
     @EntityGraph(attributePaths = {
             "sourceAccount",
+            "sourceAccount.user",
             "destinationAccount",
+            "destinationAccount.user",
             "createdByUser"
     })
     Optional<Transaction> findWithDetailsByIdempotencyKey(String idempotencyKey);
+
+    @EntityGraph(attributePaths = {
+            "sourceAccount",
+            "destinationAccount",
+            "createdByUser"
+    })
+    List<Transaction> findByCreatedByUserOrSourceAccountUserOrDestinationAccountUser(
+            AppUser createdByUser,
+            AppUser sourceAccountUser,
+            AppUser destinationAccountUser
+    );
 }

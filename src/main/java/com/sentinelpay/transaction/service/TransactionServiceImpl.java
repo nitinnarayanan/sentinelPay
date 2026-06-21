@@ -24,6 +24,9 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+import java.util.UUID;
+
 @Service
 @RequiredArgsConstructor
 public class TransactionServiceImpl implements TransactionService {
@@ -142,5 +145,55 @@ public class TransactionServiceImpl implements TransactionService {
                 requestMetadataUtil.getClientIp(httpRequest),
                 requestMetadataUtil.getUserAgent(httpRequest)
         ));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<TransactionResponse> getMyTransactions(SentinelPayUserPrincipal principal) {
+        AppUser user = appUserRepository.findById(principal.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + principal.getId()));
+
+        return transactionRepository
+                .findByCreatedByUserOrSourceAccountUserOrDestinationAccountUser(user, user, user)
+                .stream()
+                .map(transactionMapper::toTransactionResponse)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public TransactionResponse getMyTransactionById(
+            UUID transactionId,
+            SentinelPayUserPrincipal principal
+    ) {
+        Transaction transaction = transactionRepository.findWithDetailsById(transactionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Transaction not found with id: " + transactionId));
+
+        validateTransactionVisibility(transaction, principal);
+
+        return transactionMapper.toTransactionResponse(transaction);
+    }
+
+    private void validateTransactionVisibility(
+            Transaction transaction,
+            SentinelPayUserPrincipal principal
+    ) {
+        boolean createdByUser = transaction.getCreatedByUser()
+                .getId()
+                .equals(principal.getId());
+
+        boolean sourceAccountOwner = transaction.getSourceAccount()
+                .getUser()
+                .getId()
+                .equals(principal.getId());
+
+        boolean destinationAccountOwner = transaction.getDestinationAccount()
+                .getUser()
+                .getId()
+                .equals(principal.getId());
+
+        if (!createdByUser && !sourceAccountOwner && !destinationAccountOwner) {
+            throw new AccessDeniedException("You do not have permission to access this transaction");
+        }
     }
 }
